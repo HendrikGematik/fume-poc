@@ -21,4 +21,14 @@ const isEmpty = async (value: any): Promise<boolean> => {
   return res;
 };
 
-export { isEmpty, omitKeys, selectKeys };
+// add function to read Medication details from database by pzn and feed into object
+const feedMedicationPZN = async (obj: object, pzn: string): Promise<object> => {
+  // lookup details from pzn
+  // medication = await expressions.feedMedicationPZN.evaluate({},'form.text', 'Tablette');
+  // medication = await expressions.feedMedicationPZN.evaluate({},'ingredient.strength.amountText', '500mg');
+  // medication = await expressions.feedMedicationPZN.evaluate({},'code.text', 'ASS-500 Produktbezeichnung - Verzeichnis manifique');
+  const res = await expressions.feedMedicationPZN.evaluate(obj);
+  return res;
+};
+
+export { feedMedicationPZN, isEmpty, omitKeys, selectKeys };

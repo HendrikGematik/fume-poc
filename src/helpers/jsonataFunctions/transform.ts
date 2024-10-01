@@ -92,6 +92,7 @@ export const transform = async (input, expression: string, extraBindings: Record
     bindings.v2json = v2.v2json;
     bindings.isNumeric = stringFuncs.isNumeric;
     bindings.capabilities = fhirFuncs.capabilities;
+    bindings.feedMedicationPZN = objectFuncs.feedMedicationPZN;
 
     const { aliases } = getCache();
     // these are debug functions, should be removed in production versions
@@ -113,8 +114,8 @@ export const transform = async (input, expression: string, extraBindings: Record
     // end of debug functions
 
     // bind all aliases from cache
-    bindings = { 
-      ...aliases.getDict(), 
+    bindings = {
+      ...aliases.getDict(),
       ...bindings,
       ...extraBindings
     };

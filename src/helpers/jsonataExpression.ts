@@ -33,6 +33,7 @@ export interface InternalJsonataExpression {
   testCodeAgainstVS: jsonata.Expression
   testCodingAgainstVS: jsonata.Expression
   testCodeableAgainstVS: jsonata.Expression
+  feedMedicationPZN: jsonata.Expression
 };
 
 const expressions: InternalJsonataExpression = {
@@ -45,9 +46,9 @@ const expressions: InternalJsonataExpression = {
     }`),
   searchSingle: jsonata(`(
     $assert(
-      $bundle.total <= 1, 
-      'The search ' 
-      & $bundle.link[relation='self'].url 
+      $bundle.total <= 1,
+      'The search '
+      & $bundle.link[relation='self'].url
       & ' returned multiple matches - criteria is not selective enough'
     );
     $bundle.entry[search.mode='match'][0].resource
@@ -66,7 +67,7 @@ const expressions: InternalJsonataExpression = {
   omitKeys: jsonata('$in.$sift($, function($v, $k) {($k in $okeys)=false})'),
   v2normalizeKey: jsonata(`(
     $cached := $lookup($keyMap, $);
-    $exists($cached) = false 
+    $exists($cached) = false
       ? (
         $titleCased := ($split($initCap($replace($,"'", '')), ' ')~>$join);
         $dtmFixed := $titleCased.$replace('Date/Time', 'DateTime') ~> $replace('Date / Time', 'DateTime');
@@ -78,19 +79,19 @@ const expressions: InternalJsonataExpression = {
         $underscored;
       )
       : ($cached);
-    
+
   )`)),
   v2json: jsonata(`(
     $rawJson := $v2parse($);
     $v2version := $rawJson.segments[0].\`12\`;
-  
+
     $dtToIso := function($dt){(
       $y := $substring($dt,0,4);
       $m := $substring($dt,4,2);
       $d := $substring($dt,6,2);
       $join([$y,$m,$d],'-')
     )};
-  
+
     $dtmToIso := function($dtm){(
       $dt := $dtToIso($dtm);
       $hh := $substring($dtm,8,2);
@@ -99,16 +100,16 @@ const expressions: InternalJsonataExpression = {
       $tm := $join([($hh!=''?$hh),($mm!=''?$mm),($ss!=''?$ss)],':');
       $dt & ($tm!=''? 'T' & $tm)
     )};
-  
-    $parseValue := function($value, $datatype){(    
-      $value = '' 
-      ? 
-        undefined 
+
+    $parseValue := function($value, $datatype){(
+      $value = ''
+      ?
+        undefined
       : $value.(
           $datatype = 'DT' ? $dtToIso($) : ($datatype = 'DTM' ? $dtmToIso($) : $)
         )
     )};
-  
+
     $translateSubfield := function($subfield, $datatypeDef, $sfi){(
       $subfieldDef := $datatypeDef.subfields[$sfi];
       $subfieldDesc := $subfieldDef.desc;
@@ -116,34 +117,34 @@ const expressions: InternalJsonataExpression = {
       $sfDataTypeDef := $getDatatypeDef($subfieldDatatype, $v2version);
       $isComplex := $count($sfDataTypeDef.subfields)>0;
       $hasChildren := $count($subfield.fields)>0;
-  
+
       $value := (
-        $isComplex = false 
+        $isComplex = false
         ? $parseValue($subfield.value, $subfieldDatatype)
         : (
           /* it's a complex type */
-          $hasChildren 
-          ? ( 
+          $hasChildren
+          ? (
             /* input has children */
             $subfield.fields@$subsubfield#$ssfi.$translateSubfield($subsubfield, $sfDataTypeDef, $ssfi){
               $normalizeKey(name): value
             };
           )
-          : ( 
+          : (
             /* input doesn't have children */
             $translateSubfield({'value': $subfield.value}, $sfDataTypeDef, 0){
               $normalizeKey(name): value
             }
           )
-        )      
+        )
       );
-  
+
       {
         'name': $subfieldDesc,
         'value': $value != {} ? $value
       }
     )};
-  
+
     $translateField := function($field, $segDef, $fieldIndex){(
       $fieldDef := $segDef.fields[$fieldIndex];
       $fieldDesc := $fieldDef.desc;
@@ -153,21 +154,21 @@ const expressions: InternalJsonataExpression = {
       $isEnc := $segDef.segmentId='MSH' and $fieldIndex=1;
       $isComplex := $count($datatypeDef.subfields)>0;
       $hasChildren := $count($field.fields)>0;
-  
+
       $value := (
         $isEnc ? $field.value : (
-          $isComplex = false 
+          $isComplex = false
           ? $parseValue($field.value, $fieldDatatype)
           : (
             /* it's a complex type */
-            $hasChildren 
-            ? ( 
+            $hasChildren
+            ? (
               /* input has children */
               $field.fields@$subfield#$sfi.$translateSubfield($subfield, $datatypeDef, $sfi){
                 $normalizeKey(name): value
               };
             )
-            : ( 
+            : (
               /* input doesn't have children */
               $translateSubfield({'value': $field.value}, $datatypeDef, 0){
                 $normalizeKey(name): value
@@ -177,13 +178,13 @@ const expressions: InternalJsonataExpression = {
         )
       );
       $value := $value = {} ? undefined : $value;
-      
+
       {
         'name': $fieldDesc,
         'value': $value
       };
     )};
-  
+
     $translateSegment := function($segment){(
       $segId := $segment.\`0\`;
       $segDef := $getSegmentDef($segId, $v2version);
@@ -192,10 +193,10 @@ const expressions: InternalJsonataExpression = {
         $normalizeKey(name): value
       }
     )};
-  
+
     $rawJson.segments@$s.$translateSegment($s){
       $s.\`0\`: $
-    };  
+    };
   )`),
   parseFumeExpression: jsonata(`
     (
@@ -226,8 +227,8 @@ const expressions: InternalJsonataExpression = {
   bundleToArrayOfResources: jsonata('[$bundleArray.entry.resource]'),
   structureMapsToMappingObject: jsonata(`
     ($[
-      resourceType='StructureMap' 
-      and status='active' 
+      resourceType='StructureMap'
+      and status='active'
       and useContext[
         code.system = 'http://snomed.info/sct'
         and code.code = '706594005'
@@ -241,7 +242,7 @@ const expressions: InternalJsonataExpression = {
   aliasResourceToObject: jsonata('group.element{code: target.code}'),
   conceptMapToTable: jsonata(`(
     $cm := (resourceType='Bundle' ? [entry[0].resource] : [$]);
-  
+
     $merge(
       $cm#$i.id.{
         $: $merge(
@@ -249,14 +250,14 @@ const expressions: InternalJsonataExpression = {
             $code := $;
             {
               $code: $cm[$i].group.element[code=$code].target[
-                equivalence='equivalent' 
-                or equivalence='equal' 
-                or equivalence='wider' 
+                equivalence='equivalent'
+                or equivalence='equal'
+                or equivalence='wider'
                 or equivalence='subsumes'
                 or equivalence='relatedto'
               ].code.{
-                "code": $, 
-                "source": %.%.%.source, 
+                "code": $,
+                "source": %.%.%.source,
                 "target": %.%.%.target,
                 "display": %.display
               }[]
@@ -269,9 +270,9 @@ const expressions: InternalJsonataExpression = {
   createRawPackageIndexObject: jsonata(`
   (
     $packageReplace := $replace(?,'#', '@');
-  
+
     $packages := \${$packageReplace(package): $omitKeys($, ["package", "packageIndex"])};
-  
+
     $files := ($.packageIndex.files[resourceType in ['StructureDefinition','ValueSet','CodeSystem','ConceptMap']].(
       $fullPath := $pathJoin(%.%.path, filename);
       $actualFile := $require($fullPath);
@@ -296,7 +297,7 @@ const expressions: InternalJsonataExpression = {
         'date': $actualFile.date
       }
     )){path: $};
-  
+
     {
       'packages': $packages,
       'files': $files
@@ -308,7 +309,7 @@ const expressions: InternalJsonataExpression = {
       $fhirVersions := $distinct(files.*.fhirVersion);
       $packages := packages;
       $files := files;
-  
+
       $splitVersionId := function($versionId) {(
         $parts := $split($versionId, '.');
         $major := $parts[0];
@@ -323,13 +324,13 @@ const expressions: InternalJsonataExpression = {
           'label': $isNumeric($major)=false ? $major : $label != $patch ? $label : ''
         }
       )};
-  
+
       $toMinorVersionId := function($versionId){
         $splitVersionId($versionId).($join([$string(major), $string(minor)], '.'))
       };
-  
+
       $minorVersions := $distinct($fhirVersions.$toMinorVersionId($));
-  
+
       $minorVersions{
         'packages': $packages,
         'files': $files,
@@ -430,7 +431,7 @@ const expressions: InternalJsonataExpression = {
             $merge([$filesEntry, {'packageVersion': $splitVersionId($filesEntry.packageVersion)}])
         )
     };
-    
+
     $bestFileByUrl := function($filePaths) {
         (
             $filesEntries := $filePaths@$fp.$splitPackageVersion($lookup($$.files, $fp));
@@ -477,8 +478,8 @@ const expressions: InternalJsonataExpression = {
             };
             $merge([$byId,$dupsFixed])
         )
-    };    
-    
+    };
+
     $fixTypeByName := function($byName) {
         (
             $dups := $getDuplicates($byName);
@@ -519,7 +520,7 @@ const expressions: InternalJsonataExpression = {
   extractCurrentPackagesFromIndex: jsonata('$keys(packages)'),
   checkPackagesMissingFromIndex: jsonata(`(
     $dirList := dirList.$replace('#', '@');
-    
+
     $missingFromIndex := packages[$not($ in $dirList)];
     $missingFromCache := $dirList[$not($ in $$.packages)];
 
@@ -528,22 +529,22 @@ const expressions: InternalJsonataExpression = {
   isEmpty: jsonata(`(
     $_isEmpty := function($input) {(
       $exists($input) ? (
-        $input in ['', null, {}, []] 
+        $input in ['', null, {}, []]
         or (
-          $type($input) = 'string' 
-          and $length($input) > 0 
+          $type($input) = 'string'
+          and $length($input) > 0
           and $trim($input) = ''
         )
-        ? true 
+        ? true
         : (
-          $type($input) = 'object' 
+          $type($input) = 'object'
             ? (
               $count(($keys($input).($lookup($input,$)).$not($_isEmpty($)))[$])=0
             )
             : $type($input) = 'array'
               ? (
                 $count($input[$_isEmpty($)=false]) = 0
-              ) 
+              )
               : false
         )
       ) : true
@@ -552,7 +553,7 @@ const expressions: InternalJsonataExpression = {
   )`),
   codeSystemToDictionary: jsonata('concept.**[$type($)="object"]{code:display}'),
   valueSetExpandDictionary: jsonata(`(
-    $compose := $vs.(  
+    $compose := $vs.(
       $expandInclude := function($include){(
         $exists(filter) ? undefined : (
           $vs := $include.valueSet.$valueSetExpand($);
@@ -573,13 +574,13 @@ const expressions: InternalJsonataExpression = {
           ) : $concepts
         )
       )};
-    
+
       $countIncludes := $count(compose.include);
       $countExcludes := $count(compose.exclude);
-    
+
       $includes := compose.$expandInclude(include);
       $excludes := compose.$expandInclude(exclude);
-    
+
       $count($includes)=$countIncludes and $count($excludes)=$countExcludes ? (
         [$includes.(
           $currInclude := $;
@@ -613,6 +614,14 @@ const expressions: InternalJsonataExpression = {
   testCodeableAgainstVS: jsonata(`(
     $codings := $codeable.$sift(function($v, $k){$substring($k,0,6) = 'coding'}).*;
     $codings.$testCodingAgainstVS($, $vs);
+  )`),
+  feedMedicationPZN: jsonata(`(
+    $updateDisplay := function($obj) {
+      $merge([$obj, {"manufacturer": {"display": 'ratiopharm'}}])
+    };
+    $exists(display.text) ?
+      $updateDisplay($) :
+      $updateDisplay($)
   )`)
 };
 
